@@ -391,7 +391,7 @@ namespace AssociationRuleMining
             return subsets;
         }
 
-        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=4)
+        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=2)
         {
             if (currentSubset.Count <= maxSubsetLength)
             {
