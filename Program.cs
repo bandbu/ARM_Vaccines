@@ -11,22 +11,8 @@ namespace AssociationRuleMining
     {
         static void Main(string[] args)
         {
-            // Dữ liệu mẫu
-            //List<List<string>> transactions = new List<List<string>>
-            //    {
-            //        new List<string>() { "vaccine 1", "vaccine 3", "vaccine 5", "vaccine 6" },
-            //        new List<string>() { "vaccine 1", "vaccine 5"},
-            //        new List<string>() { "vaccine 1", "vaccine 2"},
-            //        new List<string>() { "vaccine 1", "vaccine 2", "vaccine 5", "vaccine 6" },
-            //        new List<string>() { "vaccine 1", "vaccine 4", "vaccine 5" },
-            //        new List<string>() { "vaccine 1", "vaccine 3", "vaccine 5" },
-            //        new List<string>() { "vaccine 2", "vaccine 3" },
-            //    };
-
-            List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
-
-
-
+            List<List<string>> transactions_raw = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
+            List<List<string>> transactions = VaccineOnly(transactions_raw); //tách cột ngày tuổi và giới tính ra để xử lý riêng
             double minSupport = 0;
             double minConfidence = 0.1;
             int suportControl = 0;
@@ -37,18 +23,30 @@ namespace AssociationRuleMining
             Console.WriteLine("______________________________________________");
             Console.WriteLine(">> Begin Write To File");
 
-            WriteToFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json", rules);
+            WriteToFile("D:\\Git\\Association-Rule-Mining\\Rules.json", rules);
 
             //In ra các luật kết hợp
-            foreach (var rule in rules)
-            {
-                Console.WriteLine(rule.ToString());
-            }
+            //foreach (var rule in rules)
+            //{
+            //    Console.WriteLine(rule.ToString());
+            //}
 
             //-------------------------------------
             List<string> inputItem = new List<string> { "vaccine 1", "vaccine 2" };
             Predict(rules, transactions, inputItem, 0.6);
 
+        }
+
+        static List<List<string>> VaccineOnly(List<List<string>> transactions_raw)
+        {
+            List<List<string>> transactions_ = new List<List<string>>();
+            foreach (var trans in transactions_raw)
+            {
+                trans.RemoveAt(0);
+                trans.RemoveAt(1);
+                transactions_.Add(trans);
+            }
+            return transactions_;
         }
 
         //-----------------------------------
@@ -310,7 +308,7 @@ namespace AssociationRuleMining
             Console.WriteLine("2.Making Subsets:");
             stopwatch = new Stopwatch();
             stopwatch.Start();
-            List<List<string>> subsets = GenerateSubsets(uniqueItems);
+            List<List<string>> subsets = GenerateSubsets(uniqueItems,2);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
@@ -333,15 +331,18 @@ namespace AssociationRuleMining
                     List<string> antecedent = subset;
                     List<string> consequent = new List<string> { item };
 
-                    // Tính toán support và confidence cho luật kết hợp
-                    double support = subsetSupports[subset];
-                    double confidence = subsetSupports[subset] / itemSupports[item];
-
-                    // Kiểm tra điều kiện minSupport và minConfidence
-                    if (support >= minSupport && confidence >= minConfidence)
+                    if (subsetSupports.ContainsKey(subset))
                     {
-                        AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence);
-                        if (!rules.Contains(rule)) rules.Add(rule);
+                        // Tính toán support và confidence cho luật kết hợp
+                        double support = subsetSupports[subset];
+                        double confidence = subsetSupports[subset] / itemSupports[item];
+
+                        // Kiểm tra điều kiện minSupport và minConfidence
+                        if (support >= minSupport && confidence >= minConfidence)
+                        {
+                            AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence);
+                            if (!rules.Contains(rule)) rules.Add(rule);
+                        }
                     }
                 }
                 i++;
@@ -380,18 +381,18 @@ namespace AssociationRuleMining
             return itemSupports;
         }
 
-        static List<List<string>> GenerateSubsets(HashSet<string> items)
+        static List<List<string>> GenerateSubsets(HashSet<string> items, int maxSubsetLength)
         {
             List<string> itemList = items.ToList();
             List<List<string>> subsets = new List<List<string>>();
             List<string> currentSubset = new List<string>();
 
-            GenerateSubsetsRecursive(itemList, 0, currentSubset, subsets);
+            GenerateSubsetsRecursive(itemList, 0, currentSubset, subsets, maxSubsetLength);
 
             return subsets;
         }
 
-        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=2)
+        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=4)
         {
             if (currentSubset.Count <= maxSubsetLength)
             {
@@ -415,10 +416,9 @@ namespace AssociationRuleMining
         static Dictionary<List<string>, double> CalculateSubsetSupports(List<List<string>> subsets, List<List<string>> transactions, int support_control)
         {
             Dictionary<List<string>, double> subsetSupports = new Dictionary<List<string>, double>();
+            object lockObject = new object();
             Parallel.ForEach(subsets, subset =>
             {
-                Console.Clear();
-                Console.Write(((Double)subsetSupports.Count/ (Double)subsets.Count)*100+"%");
                 if (subset != null)
                 {
                     double count = 0;
@@ -435,7 +435,10 @@ namespace AssociationRuleMining
                     }
                     int totalTransactions = transactions.Count;
                     double support = count / totalTransactions;
-                    subsetSupports[subset] = support;
+                    lock (lockObject)
+                    {
+                        subsetSupports.Add(subset, support);
+                    }
                 }
             });
             return subsetSupports;
