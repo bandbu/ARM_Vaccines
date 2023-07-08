@@ -23,7 +23,7 @@ namespace AssociationRuleMining
             //        new List<string>() { "vaccine 2", "vaccine 3" },
             //    };
 
-            List<List<string>> transactions = DataReading("C:\\Users\\pc\\Downloads\\VNVCdata\\data2.csv");
+            List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
 
 
 
@@ -37,7 +37,7 @@ namespace AssociationRuleMining
             Console.WriteLine("______________________________________________");
             Console.WriteLine(">> Begin Write To File");
 
-            WriteToFile("C:\\Users\\pc\\Downloads\\VNVCdata\\Rules.json", rules);
+            WriteToFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json", rules);
 
             //In ra các luật kết hợp
             foreach (var rule in rules)
@@ -52,6 +52,7 @@ namespace AssociationRuleMining
         }
 
         //-----------------------------------
+        #region subsets gen
         static List<List<string>> GenerateSubsets2(List<List<string>> transactions)
         {
             HashSet<string> uniqueItems = new HashSet<string>();
@@ -110,7 +111,7 @@ namespace AssociationRuleMining
             return false;
         }
         //-----------------------------------
-
+        #endregion
         static void WriteToFile(string filePath, List<AssociationRule> rules)
         {
             string json = JsonSerializer.Serialize(rules);
@@ -170,7 +171,7 @@ namespace AssociationRuleMining
                     else if (Convert.ToInt32(row[1]) < 2195) row[1] = "U6";
                     else if (Convert.ToInt32(row[1]) < 6575) row[1] = "U18";
                     else row[1] = "U18";
-                    for(int i=0;i<row.Count;i++)
+                    for (int i = 0; i < row.Count; i++)
                     {
                         string[] elements = row[i].Split('-');
                         row[i] = elements[0];
@@ -309,7 +310,7 @@ namespace AssociationRuleMining
             Console.WriteLine("2.Making Subsets:");
             stopwatch = new Stopwatch();
             stopwatch.Start();
-            List<List<string>> subsets = GenerateSubsets2(transactions);
+            List<List<string>> subsets = GenerateSubsets(uniqueItems);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
@@ -379,109 +380,70 @@ namespace AssociationRuleMining
             return itemSupports;
         }
 
-        static List<List<string>> GenerateSubsets(HashSet<string> uniqueItems) //slow ver
+        static List<List<string>> GenerateSubsets(HashSet<string> items)
         {
+            List<string> itemList = items.ToList();
             List<List<string>> subsets = new List<List<string>>();
-            subsets.Add(new List<string>());
+            List<string> currentSubset = new List<string>();
 
-            Parallel.ForEach(uniqueItems, item =>
-            {
-                int subsetCount = subsets.Count;
-                for(int i=0; i<subsetCount; i++)
-                {
-                    if (subsets[i] != null)
-                    {
-                        List<string> subset = new List<string>(subsets[i]);
-                        subset.Add(item);
-                        subsets.Add(subset);
-                    }
-                };
-                //Console.WriteLine(subsets.Count);
-            });
+            GenerateSubsetsRecursive(itemList, 0, currentSubset, subsets);
 
             return subsets;
         }
 
-        static List<List<string>> FindAllSubsets(HashSet<string> items) //speed up ver
+        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=4)
         {
-            List<List<string>> subsets = new List<List<string>>();
-
-            int itemCount = items.Count;
-            string[] itemsArray = new string[itemCount];
-            items.CopyTo(itemsArray);
-
-            // Tìm tất cả các tập con sử dụng parallelization
-            Parallel.For(0, 1 << itemCount, i =>
+            if (currentSubset.Count <= maxSubsetLength)
             {
-                List<string> subset = new List<string>();
+                subsets.Add(new List<string>(currentSubset));
+            }
 
-                for (int j = 0; j < itemCount; j++)
-                {
-                    if ((i & (1 << j)) != 0)
-                    {
-                        subset.Add(itemsArray[j]);
-                    }
-                }
+            if (currentSubset.Count >= maxSubsetLength)
+            {
+                return;
+            }
 
-                lock (subsets)
-                {
-                    subsets.Add(subset);
-                }
-            });
-
-            return subsets;
+            for (int i = index; i < items.Count; i++)
+            {
+                currentSubset.Add(items[i]);
+                GenerateSubsetsRecursive(items, i + 1, currentSubset, subsets, maxSubsetLength);
+                currentSubset.RemoveAt(currentSubset.Count - 1);
+            }
         }
+
 
         static Dictionary<List<string>, double> CalculateSubsetSupports(List<List<string>> subsets, List<List<string>> transactions, int support_control)
         {
             Dictionary<List<string>, double> subsetSupports = new Dictionary<List<string>, double>();
-            //Parallel.ForEach(subsets, subset =>
-            //{
-            //    double count = 0;
-            //    foreach (var transaction in transactions)
-            //    {
-            //        if (IsSubset(subset, transaction))
-            //        {
-            //            count++;
-            //        }
-            //    }
-            //    if (count <= support_control)
-            //    {
-            //        subsetSupports[subset] = 0;
-            //    }
-            //    else
-            //    {
-            //        int totalTransactions = transactions.Count;
-            //        double support = count / totalTransactions;
-            //        subsetSupports[subset] = support;
-            //    }
-            //});
-            foreach (var subset in subsets)
+            Parallel.ForEach(subsets, subset =>
             {
-                if(subset==null) continue;
-                double count = 0;
-                foreach (var transaction in transactions)
+                Console.Clear();
+                Console.Write(((Double)subsetSupports.Count/ (Double)subsets.Count)*100+"%");
+                if (subset != null)
                 {
-                    if (IsSubset(subset, transaction))
+                    double count = 0;
+                    foreach (var transaction in transactions)
                     {
-                        count++;
+                        if (IsSubset(subset, transaction))
+                        {
+                            count++;
+                        }
                     }
+                    if (count <= support_control)
+                    {
+                        count = 0;
+                    }
+                    int totalTransactions = transactions.Count;
+                    double support = count / totalTransactions;
+                    subsetSupports[subset] = support;
                 }
-                if (count <= support_control)
-                {
-                    subsetSupports[subset] = 0;
-                    continue;
-                }
-                int totalTransactions = transactions.Count;
-                double support = count / totalTransactions;
-                subsetSupports[subset] = support;
-            }
+            });
             return subsetSupports;
         }
 
         static bool IsSubset(List<string> subset, List<string> transaction)
         {
-            if(subset==null) return false;
+            if (subset == null) return false;
             foreach (var item in subset)
             {
                 if (!transaction.Contains(item))
