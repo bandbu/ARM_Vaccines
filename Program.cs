@@ -2,7 +2,9 @@
 using Accord.MachineLearning.Performance;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using System.Transactions;
 
@@ -12,30 +14,37 @@ namespace AssociationRuleMining
     {
         static void Main(string[] args)
         {
-            List<List<string>> transactions = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
+            #region trainning session
 
-            double minSupport = 0;
-            double minConfidence = 0.1;
-            int suportControl = 0;
 
-            //Tính toán luật kết hợp
-            Console.WriteLine("Begin Trainning");
-            List<AssociationRule> rules = GenerateAssociationRules(transactions, minSupport, minConfidence, suportControl);
-            Console.WriteLine("______________________________________________");
-            Console.WriteLine(">> Begin Write To File");
+            //List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
 
-            WriteToFile("D:\\Git\\Association-Rule-Mining\\Rules.json", rules);
+            //double minSupport = 0;
+            //double minConfidence = 0.1;
+            //int suportControl = 0;
 
+            ////Tính toán luật kết hợp
+            //Console.WriteLine("Begin Trainning");
+            //List<AssociationRule> rules = GenerateAssociationRules(transactions, minSupport, minConfidence, suportControl);
+            //Console.WriteLine("______________________________________________");
+            //Console.WriteLine(">> Begin Write To File");
+
+            //WriteToFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json", rules);
+
+            #endregion
+
+
+            List<AssociationRule> rules = ReadFromFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json");
             //In ra các luật kết hợp
-            //foreach (var rule in rules)
-            //{
-            //    Console.WriteLine(rule.ToString());
-            //}
+            foreach (var rule in rules)
+            {
+                Console.WriteLine(rule.ToString());
+            }
 
             //-------------------------------------
-            List<string> inputItem = new List<string> { "vaccine 1", "vaccine 2" };
-            Predict(rules, transactions, inputItem, 0.6);
-
+            List<string> inputItem = new List<string> { "1", "U6", "100010", "100007", "1000024" };
+            //Predict(rules, transactions, inputItem, 0.6);
+            Console.WriteLine(AvailableChecking(inputItem, rules));
         }
 
         static List<List<string>> VaccineOnly(List<List<string>> transactions)
@@ -183,6 +192,48 @@ namespace AssociationRuleMining
             return data;
         }
 
+        static double AvailableChecking(List<String> InputData,List<AssociationRule> rules)
+        {
+            if (InputData.Count < 4) return 0;
+            //Data Formatting
+            List<String> vaccines = InputData.GetRange(2, InputData.Count - 2);
+            List<String> Prefix_ = InputData.GetRange(0, 2);
+            //Get Unique Items list
+            HashSet<String> uniqueItems = new HashSet<String>();
+            foreach (var transaction in vaccines)
+            {
+                uniqueItems.Add(transaction);
+            }
+            List<List<String>> subsets_vc = GenerateSubsets(uniqueItems, 2);
+            List<List<String>> subsets_total = new List<List<String>>();
+
+            foreach (var subset in subsets_vc)
+            {
+                List<String> row = new List<String>();
+                row.AddRange(Prefix_);
+                row.AddRange(subset);
+                subsets_total.Add(row); // Add the row to the subsets_total list
+            }
+            subsets_total.RemoveAll(list => list.Count <= 3);
+
+            double confidence = 1;
+
+            foreach (var subsets in subsets_total)
+            {
+                confidence = confidence*CalculateItemConfidence(subsets, rules);
+            }
+
+            return (confidence*100); // nếu dương thì là có thể
+        }
+
+
+
+
+
+
+
+
+
         static void Predict(List<AssociationRule> rules, List<List<string>> transactions, List<string> inputItem, double minConfidence)
         {
             double inputItemSupport = CalculateItemSupport(inputItem, transactions);
@@ -313,6 +364,7 @@ namespace AssociationRuleMining
             stopwatch.Start();
             List<List<string>> subsets_vc = GenerateSubsets(uniqueItems, 2);
             List<List<string>> subsets = GenerateSubsets_total(subsets_vc);
+            subsets.RemoveAll(list => list.Count <= 3);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
