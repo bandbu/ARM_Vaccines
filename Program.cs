@@ -1,4 +1,5 @@
-﻿using Accord.MachineLearning.Performance;
+﻿using Accord.IO;
+using Accord.MachineLearning.Performance;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,8 +12,8 @@ namespace AssociationRuleMining
     {
         static void Main(string[] args)
         {
-            List<List<string>> transactions_raw = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
-            List<List<string>> transactions = VaccineOnly(transactions_raw); //tách cột ngày tuổi và giới tính ra để xử lý riêng
+            List<List<string>> transactions = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
+
             double minSupport = 0;
             double minConfidence = 0.1;
             int suportControl = 0;
@@ -37,13 +38,14 @@ namespace AssociationRuleMining
 
         }
 
-        static List<List<string>> VaccineOnly(List<List<string>> transactions_raw)
+        static List<List<string>> VaccineOnly(List<List<string>> transactions)
         {
+            List<List<string>> transactions_raw = transactions.DeepClone();
             List<List<string>> transactions_ = new List<List<string>>();
             foreach (var trans in transactions_raw)
             {
                 trans.RemoveAt(0);
-                trans.RemoveAt(1);
+                trans.RemoveAt(0);
                 transactions_.Add(trans);
             }
             return transactions_;
@@ -288,15 +290,16 @@ namespace AssociationRuleMining
 
         static List<AssociationRule> GenerateAssociationRules(List<List<string>> transactions, double minSupport, double minConfidence, int supportControl = 100)
         {
-            // Tính toán support cho tất cả các mục
+            // Tính toán support cho tất cả các mục            
             Dictionary<string, double> itemSupports = CalculateItemSupports(transactions);
-
+            //tách cột ngày tuổi và giới tính ra để xử lý riêng
+            List<List<string>> transactions_vc = VaccineOnly(transactions);
             // Tạo tập hợp chứa tất cả các mục duy nhất
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             Console.WriteLine("1.Making uniqueItems:");
             HashSet<string> uniqueItems = new HashSet<string>();
-            foreach (var transaction in transactions)
+            foreach (var transaction in transactions_vc)
             {
                 foreach (var item in transaction)
                 {
@@ -308,7 +311,8 @@ namespace AssociationRuleMining
             Console.WriteLine("2.Making Subsets:");
             stopwatch = new Stopwatch();
             stopwatch.Start();
-            List<List<string>> subsets = GenerateSubsets(uniqueItems,2);
+            List<List<string>> subsets_vc = GenerateSubsets(uniqueItems, 2);
+            List<List<string>> subsets = GenerateSubsets_total(subsets_vc);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
@@ -392,7 +396,43 @@ namespace AssociationRuleMining
             return subsets;
         }
 
-        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength=4)
+        static List<List<string>> GenerateSubsets_total(List<List<string>> subsets)
+        {
+            List<List<string>> subsets_total = new List<List<string>>();
+            List<List<string>> pres = new List<List<string>>();
+            for (int i = 0; i < 2; i++)
+                for (int j = 0; j < 4; j++)
+                {
+                    List<string> item = new List<string>();
+                    string group = "";
+                    switch (j)
+                    {
+                        case 0: group = "NB"; break;
+                        case 1: group = "LC"; break;
+                        case 2: group = "U6"; break;
+                        case 3: group = "U18"; break;
+                    }
+                    item.Add(i.ToString());
+                    item.Add(group);
+                    pres.Add(item);
+                }
+            foreach (List<string> subset in subsets)
+                foreach (List<string> pre in pres)
+                {
+                    if (subset.Count > 0)
+                    {
+                        List<string> row = new List<string>();
+                        row.AddRange(pre);
+                        row.AddRange(subset);
+                        subsets_total.Add(row);
+                    }
+                }
+            Console.WriteLine(subsets.Count + "=>" + subsets_total.Count + "| Done");
+            return subsets_total;
+        }
+
+
+        static void GenerateSubsetsRecursive(List<string> items, int index, List<string> currentSubset, List<List<string>> subsets, int maxSubsetLength = 4)
         {
             if (currentSubset.Count <= maxSubsetLength)
             {
