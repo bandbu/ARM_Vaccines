@@ -12,11 +12,11 @@ namespace AssociationRuleMining
         static void Main(string[] args)
         {
             #region Trainning Session
-            //List<List<string>> transactions = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
+            //List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
 
-            //double minSupport = 0;
-            //double minConfidence = 0.1;
-            //int suportControl = 0;
+            //double minSupport = 0; 
+            //double minConfidence = 0;
+            //int suportControl = 0; 
 
             ////Tính toán luật kết hợp
             //Console.WriteLine("Begin Trainning");
@@ -29,17 +29,17 @@ namespace AssociationRuleMining
             #endregion
 
             #region Using Session
-            List<AssociationRule> rules = ReadFromFile("D:\\Git\\Association-Rule-Mining\\Rules.json");
+            List<AssociationRule> rules = ReadFromFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json");
             //In ra các luật kết hợp
-            foreach (var rule in rules)
-            {
-                Console.WriteLine(rule.ToString());
-            }
+            //foreach (var rule in rules)
+            //{
+            //    Console.WriteLine(rule.ToString());
+            //}
             //-------------------------------------
-            List<string> inputItem = new List<string> { "1", "U6", "100007", "10011" };
-            String NextItem = "100010";
+            List<string> inputItem = new List<string> { "0", "U6", "2", "1000011" };
+            String NextItem = "4";
             //Predict(rules, transactions, inputItem, 0.6);
-            Console.WriteLine("("+string.Join(", ",inputItem)+") + "+NextItem+" (Confidence=" + Math.Round(AvailableChecking(inputItem,NextItem, rules)) + "%)");
+            Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence=" + Math.Round(AvailableChecking(inputItem, NextItem, rules)) + "%)");
             #endregion
         }
 
@@ -189,10 +189,10 @@ namespace AssociationRuleMining
         }
 
         //-------------------------------------------------------------------------------------------
-        static double AvailableChecking(List<String> InputData,String NextItem,List<AssociationRule> rules)
+        static double AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules)
         {
             Console.WriteLine("--------------");
-            if (InputData.Count < 4) return 0;
+            if (InputData.Count < 3) return 0;
             //Data Formatting
             List<String> vaccines = InputData.GetRange(2, InputData.Count - 2);
             List<String> Prefix_ = InputData.GetRange(0, 2);
@@ -217,16 +217,17 @@ namespace AssociationRuleMining
 
             foreach (var subsets in subsets_total)
             {
-                var conf = CalculateItemConfidenceWithNextItem(subsets,NextItem, rules);
+                var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules);
                 if (conf == 0)
                 {
+                    Console.WriteLine("Can't find any record about using "+string.Join(", ",subsets)+" with "+NextItem);
                     Console.WriteLine("Warning: This item is not allowed");
                     return 0;
                 }
-                confidence+=conf;
+                confidence += conf;
             }
             Console.WriteLine("--------------");
-            return (confidence)/subsets_total.Count; // nếu dương thì là có thể
+            return (confidence) / subsets_total.Count; // nếu dương thì là có thể
         }
 
         //static String PredictNext(List<String> InputData, List<AssociationRule> rules)
@@ -258,7 +259,7 @@ namespace AssociationRuleMining
 
             foreach (var rule in rules)
             {
-                if (NonsequenceEqual(rule.Antecedent,item))
+                if (NonsequenceEqual(rule.Antecedent, item))
                 {
                     confidence = Math.Round(rule.Confidence * 100);
                     break;
@@ -268,7 +269,7 @@ namespace AssociationRuleMining
             return confidence;
         }
 
-        static double CalculateItemConfidenceWithNextItem(List<string> item,String NextItem, List<AssociationRule> rules)
+        static double CalculateItemConfidenceWithNextItem(List<string> item, String NextItem, List<AssociationRule> rules)
         {
             double confidence = 0;
             List<String> nextItems = new List<String>();
@@ -317,7 +318,7 @@ namespace AssociationRuleMining
             stopwatch.Start();
             List<List<string>> subsets_vc = GenerateSubsets(uniqueItems, 2);
             List<List<string>> subsets = GenerateSubsets_total(subsets_vc);
-            //subsets.RemoveAll(list => list.Count <= 3);
+            subsets.RemoveAll(list => list.Count < 3);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
@@ -334,10 +335,11 @@ namespace AssociationRuleMining
             int i = 0;
             foreach (var subset in subsets)
             {
-                Console.Write("|");
+                if (subset.Count < 4) continue;
                 foreach (var item in subset)
                 {
-                    List<string> antecedent = subset;
+                    List<string> antecedent = subset.DeepClone();
+                    antecedent.RemoveAt(subset.IndexOf(item));
                     List<string> consequent = new List<string> { item };
 
                     if (subsetSupports.ContainsKey(subset))
@@ -347,7 +349,7 @@ namespace AssociationRuleMining
                         double confidence = subsetSupports[subset] / itemSupports[item];
 
                         // Kiểm tra điều kiện minSupport và minConfidence
-                        if (support >= minSupport && confidence >= minConfidence)
+                        if (support >= minSupport && confidence > minConfidence)
                         {
                             AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence);
                             if (!rules.Contains(rule)) rules.Add(rule);
