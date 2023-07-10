@@ -12,11 +12,11 @@ namespace AssociationRuleMining
         static void Main(string[] args)
         {
             #region Trainning Session
-            //List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
+            //List<List<string>> transactions = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
 
-            //double minSupport = 0; 
+            //double minSupport = 0;
             //double minConfidence = 0;
-            //int suportControl = 0; 
+            //int suportControl = 0;
 
             ////Tính toán luật kết hợp
             //Console.WriteLine("Begin Trainning");
@@ -24,19 +24,19 @@ namespace AssociationRuleMining
             //Console.WriteLine("______________________________________________");
             //Console.WriteLine(">> Begin Write To File");
 
-            //WriteToFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json", rules);
+            //WriteToFile("D:\\Git\\Association-Rule-Mining\\Rules.json", rules);
 
             #endregion
 
             #region Using Session
-            List<AssociationRule> rules = ReadFromFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json");
+            List<AssociationRule> rules = ReadFromFile("D:\\Git\\Association-Rule-Mining\\Rules.json");
             //In ra các luật kết hợp
             //foreach (var rule in rules)
             //{
             //    Console.WriteLine(rule.ToString());
             //}
             //-------------------------------------
-            List<string> inputItem = new List<string> { "0", "U6", "2", "1000011" };
+            List<string> inputItem = new List<string> { "0", "U6", "7", "1000024" };
             String NextItem = "4";
             //Predict(rules, transactions, inputItem, 0.6);
             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence=" + Math.Round(AvailableChecking(inputItem, NextItem, rules)) + "%)");
@@ -336,10 +336,11 @@ namespace AssociationRuleMining
             foreach (var subset in subsets)
             {
                 if (subset.Count < 4) continue;
-                foreach (var item in subset)
+                for (int t=2;t<subset.Count;t++)
                 {
+                    var item = subset[t];
                     List<string> antecedent = subset.DeepClone();
-                    antecedent.RemoveAt(subset.IndexOf(item));
+                    antecedent.RemoveAt(t);
                     List<string> consequent = new List<string> { item };
 
                     if (subsetSupports.ContainsKey(subset))
@@ -347,7 +348,6 @@ namespace AssociationRuleMining
                         // Tính toán support và confidence cho luật kết hợp
                         double support = subsetSupports[subset];
                         double confidence = subsetSupports[subset] / itemSupports[item];
-
                         // Kiểm tra điều kiện minSupport và minConfidence
                         if (support >= minSupport && confidence > minConfidence)
                         {
