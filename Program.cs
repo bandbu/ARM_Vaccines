@@ -1,12 +1,9 @@
 ﻿using Accord.IO;
-using Accord.MachineLearning.Performance;
-using System;
-using System.Collections.Generic;
+using Accord.Math;
 using System.Data;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
-using System.Transactions;
+using System.Linq;
 
 namespace AssociationRuleMining
 {
@@ -14,10 +11,8 @@ namespace AssociationRuleMining
     {
         static void Main(string[] args)
         {
-            #region trainning session
-
-
-            //List<List<string>> transactions = DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
+            #region Trainning Session
+            //List<List<string>> transactions = DataReading("D:\\Git\\Association-Rule-Mining\\data2.csv");
 
             //double minSupport = 0;
             //double minConfidence = 0.1;
@@ -33,18 +28,19 @@ namespace AssociationRuleMining
 
             #endregion
 
-
-            List<AssociationRule> rules = ReadFromFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json");
+            #region Using Session
+            List<AssociationRule> rules = ReadFromFile("D:\\Git\\Association-Rule-Mining\\Rules.json");
             //In ra các luật kết hợp
             foreach (var rule in rules)
             {
                 Console.WriteLine(rule.ToString());
             }
-
             //-------------------------------------
-            List<string> inputItem = new List<string> { "1", "U6", "100010", "100007", "1000024" };
+            List<string> inputItem = new List<string> { "1", "U6", "100007", "10011" };
+            String NextItem = "100010";
             //Predict(rules, transactions, inputItem, 0.6);
-            Console.WriteLine(AvailableChecking(inputItem, rules));
+            Console.WriteLine("("+string.Join(", ",inputItem)+") + "+NextItem+" (Confidence=" + Math.Round(AvailableChecking(inputItem,NextItem, rules)) + "%)");
+            #endregion
         }
 
         static List<List<string>> VaccineOnly(List<List<string>> transactions)
@@ -192,8 +188,10 @@ namespace AssociationRuleMining
             return data;
         }
 
-        static double AvailableChecking(List<String> InputData,List<AssociationRule> rules)
+        //-------------------------------------------------------------------------------------------
+        static double AvailableChecking(List<String> InputData,String NextItem,List<AssociationRule> rules)
         {
+            Console.WriteLine("--------------");
             if (InputData.Count < 4) return 0;
             //Data Formatting
             List<String> vaccines = InputData.GetRange(2, InputData.Count - 2);
@@ -204,50 +202,39 @@ namespace AssociationRuleMining
             {
                 uniqueItems.Add(transaction);
             }
-            List<List<String>> subsets_vc = GenerateSubsets(uniqueItems, 2);
             List<List<String>> subsets_total = new List<List<String>>();
 
-            foreach (var subset in subsets_vc)
+            foreach (var subset in uniqueItems)
             {
                 List<String> row = new List<String>();
                 row.AddRange(Prefix_);
-                row.AddRange(subset);
+                row.Add(subset);
                 subsets_total.Add(row); // Add the row to the subsets_total list
             }
-            subsets_total.RemoveAll(list => list.Count <= 3);
+            //subsets_total.RemoveAll(list => list.Count <= 3);
 
             double confidence = 1;
 
             foreach (var subsets in subsets_total)
             {
-                confidence = confidence*CalculateItemConfidence(subsets, rules);
+                var conf = CalculateItemConfidenceWithNextItem(subsets,NextItem, rules);
+                if (conf == 0)
+                {
+                    Console.WriteLine("Warning: This item is not allowed");
+                    return 0;
+                }
+                confidence+=conf;
             }
-
-            return (confidence*100); // nếu dương thì là có thể
+            Console.WriteLine("--------------");
+            return (confidence)/subsets_total.Count; // nếu dương thì là có thể
         }
 
+        //static String PredictNext(List<String> InputData, List<AssociationRule> rules)
+        //{
+        //    for
+        //    return "";
+        //}
 
-
-
-
-
-
-
-
-        static void Predict(List<AssociationRule> rules, List<List<string>> transactions, List<string> inputItem, double minConfidence)
-        {
-            double inputItemSupport = CalculateItemSupport(inputItem, transactions);
-            double inputItemConfidence = CalculateItemConfidence(inputItem, rules);
-            Console.WriteLine("---------------------------------");
-            Console.WriteLine($"{string.Join(", ", inputItem)} ({inputItemSupport}% | {inputItemConfidence}%)");
-
-            // Gợi ý mặt hàng tiếp theo
-            Dictionary<List<string>, double> nextItems = GetNextItems(inputItem, transactions, rules, minConfidence);
-            foreach (var nextItem in nextItems)
-            {
-                Console.WriteLine($"The next item will be: {string.Join(", ", nextItem.Key)} ({nextItem.Value}%)");
-            }
-        }
 
         static double CalculateItemSupport(List<string> item, List<List<string>> transactions)
         {
@@ -271,7 +258,7 @@ namespace AssociationRuleMining
 
             foreach (var rule in rules)
             {
-                if (rule.Antecedent.SequenceEqual(item))
+                if (NonsequenceEqual(rule.Antecedent,item))
                 {
                     confidence = Math.Round(rule.Confidence * 100);
                     break;
@@ -281,62 +268,28 @@ namespace AssociationRuleMining
             return confidence;
         }
 
-        static Dictionary<List<string>, double> GetNextItems(List<string> item, List<List<string>> transactions, List<AssociationRule> rules, double minConfident)
+        static double CalculateItemConfidenceWithNextItem(List<string> item,String NextItem, List<AssociationRule> rules)
         {
-            Dictionary<List<string>, double> nextItems = new Dictionary<List<string>, double>();
-
+            double confidence = 0;
+            List<String> nextItems = new List<String>();
+            nextItems.Add(NextItem);
             foreach (var rule in rules)
             {
-                if (_IsSubset(item, rule.Antecedent) && rule.Confidence >= minConfident)
+                if (NonsequenceEqual(rule.Antecedent, item) && NonsequenceEqual(rule.Consequent, nextItems))
                 {
-                    nextItems.Add(rule.Consequent, Math.Round(rule.Confidence * 100));
+                    Console.WriteLine(rule.ToString());
+                    confidence = Math.Round(rule.Confidence * 100);
+                    break;
                 }
             }
-
-            // Loại bỏ các mục đã có trong item
-            foreach (var nextItem in nextItems)
-            {
-                if (_IsSubset2(item, nextItem.Key))
-                {
-                    nextItems.Remove(nextItem.Key);
-                }
-            }
-            //nextItems = nextItems.Except(item).ToList();
-            //nextItems = nextItems.Where(x => x.Count() <= item.Count()).ToList();
-
-            var distinctItems = nextItems.GroupBy(x => x.Key)
-                                     .Select(x => x.First())
-                                     .OrderByDescending(x => x.Value)
-                                     .ToList();
-
-            return new Dictionary<List<string>, double>(distinctItems);
+            return confidence;
         }
 
-        static bool _IsSubset(List<string> subset, List<string> superset)
+        static bool NonsequenceEqual(List<String> A, List<String> B)
         {
-            int subsetIndex = 0;
-            int supersetIndex = 0;
-
-            while (subsetIndex < subset.Count && supersetIndex < superset.Count)
-            {
-                if (subset[subsetIndex] == superset[supersetIndex])
-                {
-                    subsetIndex++;
-                }
-
-                supersetIndex++;
-            }
-
-            return subsetIndex == subset.Count;
-        }
-
-        static bool _IsSubset2(List<string> subset, List<string> superset)
-        {
-            foreach (var subs in subset)
-            {
-                if (superset.Contains(subs)) return true;
-            }
-            return false;
+            HashSet<String> set1 = new HashSet<String>(A);
+            HashSet<String> set2 = new HashSet<String>(B);
+            return set2.All(element => set1.Contains(element));
         }
 
         static List<AssociationRule> GenerateAssociationRules(List<List<string>> transactions, double minSupport, double minConfidence, int supportControl = 100)
@@ -364,7 +317,7 @@ namespace AssociationRuleMining
             stopwatch.Start();
             List<List<string>> subsets_vc = GenerateSubsets(uniqueItems, 2);
             List<List<string>> subsets = GenerateSubsets_total(subsets_vc);
-            subsets.RemoveAll(list => list.Count <= 3);
+            //subsets.RemoveAll(list => list.Count <= 3);
             Console.WriteLine(">>> " + subsets.Count + " Done in: " + stopwatch.Elapsed);
             // Tính toán support cho tất cả các tập con
             Console.WriteLine("3.Calculating Subsets Support:");
