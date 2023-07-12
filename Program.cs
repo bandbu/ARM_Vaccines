@@ -17,6 +17,8 @@ namespace AssociationRuleMining
         static void Menu()
         {
             bool inMenu = true;
+            string dataPath = "D:\\Git\\Association-Rule-Mining\\data2.csv";
+            string rulesPath = "D:\\Git\\Association-Rule-Mining\\Rules.json";
             List<AssociationRule> rules_= new List<AssociationRule>();
             while (inMenu)
             {
@@ -37,7 +39,7 @@ namespace AssociationRuleMining
                     case 1:
                         {
                             #region Trainning Session
-                            List<List<string>> transactions = QACoPilotZero.DataReading("C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv");
+                            List<List<string>> transactions = QACoPilotZero.DataReading(dataPath);
                             Console.WriteLine("Data read");
                             double minSupport = 0;
                             double minConfidence = 0;
@@ -50,7 +52,7 @@ namespace AssociationRuleMining
                             Console.WriteLine("______________________________________________");
                             Console.WriteLine(">> Begin Write To File");
 
-                            QACoPilotZero.WriteToFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json", rules);
+                            QACoPilotZero.WriteToFile(rulesPath, rules);
 
                             #endregion
                         }
@@ -58,7 +60,7 @@ namespace AssociationRuleMining
                     case 2:
                         {
                             #region Using Session
-                            List<AssociationRule> rules = QACoPilotZero.ReadFromFile("C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json");
+                            List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesPath);
                             rules_ = rules.ToList();
                             List<string> inputItem = new List<string> { "0", "U6", "7", "1000024" };
                             String NextItem = "4";
@@ -544,11 +546,13 @@ namespace AssociationRuleMining
                         {
                             count = 0;
                         }
+                        if(count!=0) { Console.Write("|"); }
+                        else Console.Write("-");
                         int totalTransactions = transactions.Count;
                         double support = count / totalTransactions;
                         lock (lockObject)
                         {
-                            subsetSupports.Add(subset, support);
+                            if(count!=0) subsetSupports.Add(subset, support);
                         }
                     }
                 });
