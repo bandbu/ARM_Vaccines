@@ -11,28 +11,28 @@ namespace AssociationRuleMining
     {
         static void Main(string[] args)
         {
-            Menu();            
+            Menu();
         }
 
         static void Menu()
         {
             bool inMenu = true;
-            string dataPath = "D:\\Git\\Association-Rule-Mining\\data2.csv";
-            string rulesPath = "D:\\Git\\Association-Rule-Mining\\Rules.json";
-            List<AssociationRule> rules_= new List<AssociationRule>();
+            string dataPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv";
+            string rulesPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json";
+            List<AssociationRule> rules_ = new List<AssociationRule>();
             while (inMenu)
             {
                 Console.WriteLine("============== QA Co-pilot Zero ===============");
                 Console.WriteLine("1. Train Co-pilot");
                 Console.WriteLine("2. Load and run Train Co-pilot");
-                if (rules_.Count>0)
+                if (rules_.Count > 0)
                 {
                     Console.WriteLine("3. Print all rules");
                 }
                 Console.WriteLine("0. Exit");
-                
+
                 Console.WriteLine("Choose an option:");
-                int choice=Convert.ToInt16(Console.ReadLine());
+                int choice = Convert.ToInt16(Console.ReadLine());
                 switch (choice)
                 {
                     case 0: inMenu = false; break;
@@ -43,7 +43,7 @@ namespace AssociationRuleMining
                             Console.WriteLine("Data read");
                             double minSupport = 0;
                             double minConfidence = 0;
-                            int suportControl = 0;
+                            int suportControl = 10;
 
                             //Tính toán luật kết hợp
                             Console.WriteLine("Begin Trainning");
@@ -62,15 +62,16 @@ namespace AssociationRuleMining
                             #region Using Session
                             List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesPath);
                             rules_ = rules.ToList();
-                            List<string> inputItem = new List<string> { "0", "U6", "7", "1000024" };
-                            String NextItem = "4";
+                            List<string> inputItem = new List<string> { "0", "U18", "18"};
+                            String NextItem = "36";
                             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence=" + Math.Round(QACoPilotZero.AvailableChecking(inputItem, NextItem, rules)) + "%)");
                             #endregion
                         }
                         break;
                     case 3:
                         {
-                            foreach (var rule in rules_)
+                            var sorted_rule = rules_.OrderBy(item => item.Confidence);
+                            foreach (var rule in sorted_rule)
                             {
                                 Console.WriteLine(rule.ToString());
                             }
@@ -81,34 +82,36 @@ namespace AssociationRuleMining
                 Console.Clear();
             }
         }
-        
 
-    public class AssociationRule
-    {
-        public List<string> Antecedent { get; }
-        public List<string> Consequent { get; }
-        public double Support { get; }
-        public double Confidence { get; }
 
-        public AssociationRule(List<string> antecedent, List<string> consequent, double support, double confidence)
+        public class AssociationRule
         {
-            Antecedent = antecedent;
-            Consequent = consequent;
-            Support = support;
-            Confidence = confidence;
+            public List<string> Antecedent { get; }
+            public List<string> Consequent { get; }
+            public double Support { get; }
+            public double Confidence { get; }
+            public double Count { get; }
+
+            public AssociationRule(List<string> antecedent, List<string> consequent, double support, double confidence,double count)
+            {
+                Antecedent = antecedent;
+                Consequent = consequent;
+                Support = support;
+                Confidence = confidence;
+                Count = count;
+            }
+
+            public override string ToString()
+            {
+                string antecedentString = string.Join(", ", Antecedent);
+                string consequentString = string.Join(", ", Consequent);
+
+                return $"{antecedentString} => {consequentString} (support: {Math.Round(Support * 100, 2)}%, confidence: {Math.Round(Confidence * 100, 2)}%), count: {Count}";
+            }
         }
 
-        public override string ToString()
+        public static class QACoPilotZero
         {
-            string antecedentString = string.Join(", ", Antecedent);
-            string consequentString = string.Join(", ", Consequent);
-
-            return $"{antecedentString} => {consequentString} (support: {Support}, confidence: {Confidence})";
-        }
-    }
-
-    public static class QACoPilotZero
-    {
             static List<List<string>> VaccineOnly(List<List<string>> transactions)
             {
                 List<List<string>> transactions_raw = transactions.DeepClone();
@@ -277,7 +280,6 @@ namespace AssociationRuleMining
                     row.Add(subset);
                     subsets_total.Add(row); // Add the row to the subsets_total list
                 }
-                //subsets_total.RemoveAll(list => list.Count <= 3);
 
                 double confidence = 1;
 
@@ -417,7 +419,7 @@ namespace AssociationRuleMining
                             // Kiểm tra điều kiện minSupport và minConfidence
                             if (support >= minSupport && confidence > minConfidence)
                             {
-                                AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence);
+                                AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence,Math.Round(support*transactions.Count));
                                 if (!rules.Contains(rule)) rules.Add(rule);
                             }
                         }
@@ -546,13 +548,13 @@ namespace AssociationRuleMining
                         {
                             count = 0;
                         }
-                        if(count!=0) { Console.Write("|"); }
+                        if (count != 0) { Console.Write("|"); }
                         else Console.Write("-");
                         int totalTransactions = transactions.Count;
                         double support = count / totalTransactions;
                         lock (lockObject)
                         {
-                            if(count!=0) subsetSupports.Add(subset, support);
+                            if (count != 0) subsetSupports.Add(subset, support);
                         }
                     }
                 });
