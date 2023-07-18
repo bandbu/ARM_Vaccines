@@ -5,7 +5,10 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Linq;
 using System.Text.Json.Serialization;
-using System.Reflection.Metadata.Ecma335;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Newtonsoft.Json.Linq;
+using static AssociationRuleMining.Program.QACoPilotZero;
 
 namespace AssociationRuleMining
 {
@@ -31,6 +34,7 @@ namespace AssociationRuleMining
                 if (rules_.Count > 0)
                 {
                     Console.WriteLine("3. Print all rules");
+                    Console.WriteLine("4. Clustering Rules");
                 }
                 Console.WriteLine("0. Exit");
 
@@ -44,8 +48,8 @@ namespace AssociationRuleMining
                             #region Trainning Session
                             List<List<string>> transactions = QACoPilotZero.DataReading(dataPath);
                             Console.WriteLine("Data read");
-                            double minSupport = 0;
-                            double minConfidence = 0;
+                            float minSupport = 0;
+                            float minConfidence = 0;
                             int suportControl = 10;
 
                             //Tính toán luật kết hợp
@@ -56,6 +60,8 @@ namespace AssociationRuleMining
                             Console.WriteLine(">> Begin Write To File");
 
                             QACoPilotZero.WriteToFile(rulesPath, rules);
+
+                            
 
                             #endregion
                         }
@@ -81,6 +87,38 @@ namespace AssociationRuleMining
                             }
                         }
                         break;
+                    case 4:
+                        {
+                            Stopwatch stopwatch = new Stopwatch();
+                            Console.WriteLine("5.Begin clustering");
+                            stopwatch = new Stopwatch();
+                            stopwatch.Start();
+
+                            var mlContext = new MLContext(seed: 0);
+                            string featuresColumnName = "Features";
+                            var schemaDefinition = SchemaDefinition.Create(typeof(AssociationRuleNumber));
+                            var pipeline = mlContext.Transforms
+                                .Concatenate(featuresColumnName, "Support", "Confidence")
+                                .Append(mlContext.Clustering.Trainers.KMeans(featuresColumnName, numberOfClusters: 5));
+                            List<AssociationRuleNumber> trainnindata = new List<AssociationRuleNumber>();
+                            foreach (var rule in rules_)
+                            {
+                                trainnindata.Add(new AssociationRuleNumber(rule.Support, rule.Confidence));
+                            }
+                            IDataView dataView = mlContext.Data.LoadFromEnumerable(trainnindata, schemaDefinition);
+                            var model = pipeline.Fit(dataView);
+                            Console.WriteLine(">>> " + rules_.Count + " Done in: " + stopwatch.Elapsed);
+                            Console.WriteLine("6.Finalize a data");
+                            stopwatch = new Stopwatch();
+                            stopwatch.Start();
+                            var predictor = mlContext.Model.CreatePredictionEngine<AssociationRuleNumber, ClusterPrediction>(model);
+                            for (int i =0;i<rules_.Count;i++)
+                            {
+                                rules_[i].Cluster = predictor.Predict(new AssociationRuleNumber(rules_[i].Support, rules_[i].Confidence)).PredictedClusterId;
+                            }
+                            QACoPilotZero.WriteToFile(rulesClusterPath, rules_);
+                        }
+                        break;
                 }
                 Console.ReadLine();
                 Console.Clear();
@@ -92,12 +130,24 @@ namespace AssociationRuleMining
         {
             public List<string> Antecedent { get; }
             public List<string> Consequent { get; }
-            public double Support { get; }
-            public double Confidence { get; }
-            public double Count { get; }
-            public int cluster { get; }   
+            public float Support { get; }
+            public float Confidence { get; }
+            public float Count { get; }
 
-            public AssociationRule(List<string> antecedent, List<string> consequent, double support, double confidence,double count)
+            private uint cluster;
+            public uint Cluster
+            {
+                get
+                {
+                    return cluster; // Trả về giá trị của thuộc tính khi được truy cập
+                }
+                set
+                {
+                    cluster = value; // Thiết lập giá trị mới cho thuộc tính khi gán giá trị
+                }
+            }
+
+            public AssociationRule(List<string> antecedent, List<string> consequent, float support, float confidence,float count)
             {
                 Antecedent = antecedent;
                 Consequent = consequent;
@@ -107,8 +157,9 @@ namespace AssociationRuleMining
                 cluster=0;
             }
 
+
             [JsonConstructor]
-            public AssociationRule(List<string> Antecedent, List<string> Consequent, double Support, double Confidence, double Count, int cluster)
+            public AssociationRule(List<string> Antecedent, List<string> Consequent, float Support, float Confidence, float Count, uint cluster)
             {
                 this.Antecedent = Antecedent;
                 this.Consequent = Consequent;
@@ -125,6 +176,17 @@ namespace AssociationRuleMining
 
                 return $"{antecedentString} => {consequentString} (support: {Math.Round(Support * 100, 2)}%, confidence: {Math.Round(Confidence * 100, 2)}%, count: {Count}, cluster:{cluster})";
             }
+        }
+
+        public class AssociationRuleNumber
+        {
+            public float Support { get; }
+            public float Confidence { get; }
+            public AssociationRuleNumber(float support, float confidence)
+            {
+                Support = support;
+                Confidence = confidence;
+            }  
         }
 
         public static class QACoPilotZero
@@ -275,18 +337,18 @@ namespace AssociationRuleMining
             }
 
             //-------------------------------------------------------------------------------------------
-            public static double[] AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules)
+            public static float[] AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules)
             {
-                Dictionary<double,double> TypeDict = new Dictionary<double,double>();
-                TypeDict.Add(1, 0);
-                TypeDict.Add(0, 1);
-                TypeDict.Add(4, 3);
-                TypeDict.Add(3, 4);
-                TypeDict.Add(2, 5);
+                Dictionary<float, float> TypeDict = new Dictionary<float, float>();
+                TypeDict.Add(1, 1);
+                TypeDict.Add(5, 2);
+                TypeDict.Add(2, 3);
+                TypeDict.Add(4, 4);
+                TypeDict.Add(3, 5);
                 Console.WriteLine("--------------");
                 if (InputData.Count < 3)
                 {
-                    double[] resultx = { 0, 0 };
+                    float[] resultx = { 0, 0 };
                     return resultx;
                 }
                 //Data Formatting
@@ -308,8 +370,8 @@ namespace AssociationRuleMining
                     subsets_total.Add(row); // Add the row to the subsets_total list
                 }
 
-                double confidence = 1;
-                double cluster = 0;
+                float confidence = 1;
+                float cluster = 0;
                 foreach (var subsets in subsets_total)
                 {
                     var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules);
@@ -322,7 +384,7 @@ namespace AssociationRuleMining
                     if(cluster < conf[1]) cluster = conf[1]; //lấy cluster nhỏ nhất
                 }
                 Console.WriteLine("--------------");
-                double[] result ={(confidence) / subsets_total.Count,TypeDict[confidence==0?-1:cluster / subsets_total.Count]}; // nếu dương thì là có thể
+                float[] result ={(confidence) / subsets_total.Count,TypeDict[confidence==0?-1:cluster / subsets_total.Count]}; // nếu dương thì là có thể
                 return result;
             }
 
@@ -333,7 +395,7 @@ namespace AssociationRuleMining
             //}
 
 
-            static double CalculateItemSupport(List<string> item, List<List<string>> transactions)
+            static float CalculateItemSupport(List<string> item, List<List<string>> transactions)
             {
                 int count = 0;
                 foreach (var transaction in transactions)
@@ -343,19 +405,19 @@ namespace AssociationRuleMining
                         count++;
                     }
                 }
-                double support = (double)count / transactions.Count;
-                return Math.Round(support * 100);
+                float support = (float)count / transactions.Count;
+                return (float)Math.Round(support * 100);
             }
 
-            static double CalculateItemConfidence(List<string> item, List<AssociationRule> rules)
+            static float CalculateItemConfidence(List<string> item, List<AssociationRule> rules)
             {
-                double confidence = 0;
+                float confidence = 0;
 
                 foreach (var rule in rules)
                 {
                     if (NonsequenceEqual(rule.Antecedent, item))
                     {
-                        confidence = Math.Round(rule.Confidence * 100);
+                        confidence = (float)Math.Round(rule.Confidence * 100);
                         break;
                     }
                 }
@@ -363,10 +425,10 @@ namespace AssociationRuleMining
                 return confidence;
             }
 
-            static double[] CalculateItemConfidenceWithNextItem(List<string> item, String NextItem, List<AssociationRule> rules)
+            static float[] CalculateItemConfidenceWithNextItem(List<string> item, String NextItem, List<AssociationRule> rules)
             {
-                double cluster = 0;
-                double confidence = 0;
+                float cluster = 0;
+                float confidence = 0;
                 List<String> nextItems = new List<String>();
                 nextItems.Add(NextItem);
                 foreach (var rule in rules)
@@ -376,11 +438,11 @@ namespace AssociationRuleMining
                         Console.WriteLine(rule.ToString());
                         //confidence = Math.Round(rule.Confidence * 100);
                         confidence = rule.Confidence;
-                        cluster = rule.cluster;
+                        cluster = rule.Cluster;
                         break;
                     }
                 }
-                double[]  result = {confidence, cluster};
+                float[]  result = {confidence, cluster};
                 return result;
             }
 
@@ -391,10 +453,10 @@ namespace AssociationRuleMining
                 return set2.All(element => set1.Contains(element));
             }
 
-            public static List<AssociationRule> GenerateAssociationRules(List<List<string>> transactions, double minSupport, double minConfidence, int supportControl = 100)
+            public static List<AssociationRule> GenerateAssociationRules(List<List<string>> transactions, float minSupport, float minConfidence, int supportControl = 100)
             {
                 // Tính toán support cho tất cả các mục            
-                Dictionary<string, double> itemSupports = CalculateItemSupports(transactions);
+                Dictionary<string, float> itemSupports = CalculateItemSupports(transactions);
                 //tách cột ngày tuổi và giới tính ra để xử lý riêng
                 List<List<string>> transactions_vc = VaccineOnly(transactions);
                 // Tạo tập hợp chứa tất cả các mục duy nhất
@@ -422,7 +484,7 @@ namespace AssociationRuleMining
                 Console.WriteLine("3.Calculating Subsets Support:");
                 stopwatch = new Stopwatch();
                 stopwatch.Start();
-                Dictionary<List<string>, double> subsetSupports = CalculateSubsetSupports(subsets, transactions, supportControl); //Các tập con nếu support nhỏ hơn số lượng quy định sẽ bị loại bỏ. Support để thấp để chỉ loại bỏ trường hợp ko có trong dữ liệu
+                Dictionary<List<string>, float> subsetSupports = CalculateSubsetSupports(subsets, transactions, supportControl); //Các tập con nếu support nhỏ hơn số lượng quy định sẽ bị loại bỏ. Support để thấp để chỉ loại bỏ trường hợp ko có trong dữ liệu
                 Console.WriteLine(">>> " + " Done in: " + stopwatch.Elapsed);
                 // Tạo danh sách chứa các luật kết hợp
                 List<AssociationRule> rules = new List<AssociationRule>();
@@ -444,12 +506,12 @@ namespace AssociationRuleMining
                         if (subsetSupports.ContainsKey(subset))
                         {
                             // Tính toán support và confidence cho luật kết hợp
-                            double support = subsetSupports[subset];
-                            double confidence = subsetSupports[subset] / itemSupports[item];
+                            float support = subsetSupports[subset];
+                            float confidence = subsetSupports[subset] / itemSupports[item];
                             // Kiểm tra điều kiện minSupport và minConfidence
                             if (support >= minSupport && confidence > minConfidence)
                             {
-                                AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence,Math.Round(support*transactions.Count));
+                                AssociationRule rule = new AssociationRule(antecedent, consequent, support, confidence,(float)Math.Round(support*transactions.Count));
                                 if (!rules.Contains(rule)) rules.Add(rule);
                             }
                         }
@@ -461,9 +523,18 @@ namespace AssociationRuleMining
                 return rules;
             }
 
-            static Dictionary<string, double> CalculateItemSupports(List<List<string>> transactions)
+            public class ClusterPrediction
             {
-                Dictionary<string, double> itemSupports = new Dictionary<string, double>();
+                [ColumnName("PredictedLabel")]
+                public uint PredictedClusterId;
+
+                [ColumnName("Score")]
+                public float[]? Distances;
+            }
+
+            static Dictionary<string, float> CalculateItemSupports(List<List<string>> transactions)
+            {
+                Dictionary<string, float> itemSupports = new Dictionary<string, float>();
                 foreach (var transaction in transactions)
                 {
                     foreach (var item in transaction)
@@ -481,7 +552,7 @@ namespace AssociationRuleMining
                 int totalTransactions = transactions.Count;
                 foreach (var item in itemSupports.Keys.ToList())
                 {
-                    double support = itemSupports[item] / totalTransactions;
+                    float support = itemSupports[item] / totalTransactions;
                     itemSupports[item] = support;
                 }
                 return itemSupports;
@@ -553,15 +624,15 @@ namespace AssociationRuleMining
             }
 
 
-            static Dictionary<List<string>, double> CalculateSubsetSupports(List<List<string>> subsets, List<List<string>> transactions, int support_control)
+            static Dictionary<List<string>, float> CalculateSubsetSupports(List<List<string>> subsets, List<List<string>> transactions, int support_control)
             {
-                Dictionary<List<string>, double> subsetSupports = new Dictionary<List<string>, double>();
+                Dictionary<List<string>, float> subsetSupports = new Dictionary<List<string>, float>();
                 object lockObject = new object();
                 Parallel.ForEach(subsets, subset =>
                 {
                     if (subset != null)
                     {
-                        double count = 0;
+                        float count = 0;
                         foreach (var transaction in transactions)
                         {
                             if (IsSubset(subset, transaction))
@@ -576,7 +647,7 @@ namespace AssociationRuleMining
                         if (count != 0) { Console.Write("|"); }
                         else Console.Write("-");
                         int totalTransactions = transactions.Count;
-                        double support = count / totalTransactions;
+                        float support = count / totalTransactions;
                         lock (lockObject)
                         {
                             if (count != 0) subsetSupports.Add(subset, support);
