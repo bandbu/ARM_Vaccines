@@ -340,6 +340,7 @@ namespace AssociationRuleMining
             public static float[] AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules)
             {
                 Dictionary<float, float> TypeDict = new Dictionary<float, float>();
+                TypeDict.Add(-1, -1);
                 TypeDict.Add(1, 1);
                 TypeDict.Add(5, 2);
                 TypeDict.Add(2, 3);
@@ -379,12 +380,14 @@ namespace AssociationRuleMining
                     {
                         Console.WriteLine("Can't find any record about using " + string.Join(", ", subsets) + " with " + NextItem);
                         Console.WriteLine("Warning: This item is not allowed");
+                        float[] resultn = { 0, -1};
+                        return resultn;
                     }
                     confidence += conf[0];
                     if(cluster < conf[1]) cluster = conf[1]; //lấy cluster nhỏ nhất
                 }
                 Console.WriteLine("--------------");
-                float[] result ={(confidence) / subsets_total.Count,TypeDict[confidence==0?-1:cluster]}; // nếu dương thì là có thể
+                float[] result ={(confidence) / subsets_total.Count,TypeDict[cluster]}; // nếu dương thì là có thể
                 return result;
             }
 
