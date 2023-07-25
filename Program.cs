@@ -371,7 +371,7 @@ namespace AssociationRuleMining
                 }
 
                 float confidence = 1;
-                float cluster = 0;
+                float cluster = 5;
                 foreach (var subsets in subsets_total)
                 {
                     var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules);
@@ -384,16 +384,9 @@ namespace AssociationRuleMining
                     if(cluster < conf[1]) cluster = conf[1]; //lấy cluster nhỏ nhất
                 }
                 Console.WriteLine("--------------");
-                float[] result ={(confidence) / subsets_total.Count,TypeDict[confidence==0?-1:cluster / subsets_total.Count]}; // nếu dương thì là có thể
+                float[] result ={(confidence) / subsets_total.Count,TypeDict[confidence==0?-1:cluster]}; // nếu dương thì là có thể
                 return result;
             }
-
-            //static String PredictNext(List<String> InputData, List<AssociationRule> rules)
-            //{
-            //    for
-            //    return "";
-            //}
-
 
             static float CalculateItemSupport(List<string> item, List<List<string>> transactions)
             {
