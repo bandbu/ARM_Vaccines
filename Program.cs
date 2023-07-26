@@ -58,37 +58,8 @@ namespace AssociationRuleMining
                             rules_ = rules.ToList();
                             Console.WriteLine("______________________________________________");
                             Console.WriteLine(">> Begin Write To File");
-
                             QACoPilotZero.WriteToFile(rulesPath, rules);
 
-                            
-
-                            #endregion
-                        }
-                        break;
-                    case 2:
-                        {
-                            #region Using Session
-                            List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
-                            rules_ = rules.ToList();
-                            List<string> inputItem = new List<string> { "0", "U18", "18"};
-                            String NextItem = "36";
-                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules);
-                            Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
-                            #endregion
-                        }
-                        break;
-                    case 3:
-                        {
-                            var sorted_rule = rules_.OrderBy(item => item.Confidence);
-                            foreach (var rule in sorted_rule)
-                            {
-                                Console.WriteLine(rule.ToString());
-                            }
-                        }
-                        break;
-                    case 4:
-                        {
                             Stopwatch stopwatch = new Stopwatch();
                             Console.WriteLine("5.Begin clustering");
                             stopwatch = new Stopwatch();
@@ -112,11 +83,34 @@ namespace AssociationRuleMining
                             stopwatch = new Stopwatch();
                             stopwatch.Start();
                             var predictor = mlContext.Model.CreatePredictionEngine<AssociationRuleNumber, ClusterPrediction>(model);
-                            for (int i =0;i<rules_.Count;i++)
+                            for (int i = 0; i < rules_.Count; i++)
                             {
                                 rules_[i].Cluster = predictor.Predict(new AssociationRuleNumber(rules_[i].Support, rules_[i].Confidence)).PredictedClusterId;
                             }
                             QACoPilotZero.WriteToFile(rulesClusterPath, rules_);
+                            Console.WriteLine("All Done!");
+                            #endregion
+                        }
+                        break;
+                    case 2:
+                        {
+                            #region Using Session
+                            List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
+                            rules_ = rules.ToList();
+                            List<string> inputItem = new List<string> { "0", "U18", "18"};
+                            String NextItem = "36";
+                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules);
+                            Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
+                            #endregion
+                        }
+                        break;
+                    case 3:
+                        {
+                            var sorted_rule = rules_.OrderBy(item => item.Confidence);
+                            foreach (var rule in sorted_rule)
+                            {
+                                Console.WriteLine(rule.ToString());
+                            }
                         }
                         break;
                 }
