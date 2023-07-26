@@ -89,6 +89,7 @@ namespace AssociationRuleMining
                             }
                             QACoPilotZero.WriteToFile(rulesClusterPath, rules_);
                             Console.WriteLine("All Done!");
+                            
                             #endregion
                         }
                         break;
@@ -111,6 +112,7 @@ namespace AssociationRuleMining
                             {
                                 Console.WriteLine(rule.ToString());
                             }
+                            Console.WriteLine("---------------------------------");
                         }
                         break;
                 }
@@ -378,7 +380,7 @@ namespace AssociationRuleMining
                         return resultn;
                     }
                     confidence += conf[0];
-                    if(cluster < conf[1]) cluster = conf[1]; //lấy cluster nhỏ nhất
+                    if(TypeDict[cluster] > TypeDict[conf[1]]) cluster = conf[1]; //lấy cluster nhỏ nhất
                 }
                 Console.WriteLine("--------------");
                 float[] result ={(confidence) / subsets_total.Count,TypeDict[cluster]}; // nếu dương thì là có thể
