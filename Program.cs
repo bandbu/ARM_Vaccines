@@ -25,6 +25,7 @@ namespace AssociationRuleMining
             string dataPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv";
             string rulesPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json";
             string rulesClusterPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\RulesClusterIncluded.json";
+            string TypeDictPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\TypeDict.json";
             List<AssociationRule> rules_ = new List<AssociationRule>();
             while (inMenu)
             {
@@ -83,13 +84,49 @@ namespace AssociationRuleMining
                             stopwatch = new Stopwatch();
                             stopwatch.Start();
                             var predictor = mlContext.Model.CreatePredictionEngine<AssociationRuleNumber, ClusterPrediction>(model);
-                            for (int i = 0; i < rules_.Count; i++)
+                            for (int t = 0; t < rules_.Count; t++)
                             {
-                                rules_[i].Cluster = predictor.Predict(new AssociationRuleNumber(rules_[i].Support, rules_[i].Confidence)).PredictedClusterId;
+                                rules_[t].Cluster = predictor.Predict(new AssociationRuleNumber(rules_[t].Support, rules_[t].Confidence)).PredictedClusterId;
                             }
                             QACoPilotZero.WriteToFile(rulesClusterPath, rules_);
+                            Console.WriteLine("7. Generate TypeDict");
+                            var kMeansModel = model.LastTransformer.Model;
+
+                            // Lấy ra các điểm trung tâm của các cluster
+                            VBuffer<float>[] centroids = default;
+                            model.LastTransformer.Model.GetClusterCentroids(ref centroids, out int k);
+                            Dictionary<int, float> typedict_raw = new Dictionary<int, float>();
+                            for(int j=0;j<centroids.Length;j++)
+                            {
+                                typedict_raw.Add(j, centroids[j].GetValues()[0] * centroids[j].GetValues()[0] + centroids[j].GetValues()[1] * centroids[j].GetValues()[1]);
+                            }
+                            var sortedDict = typedict_raw.OrderBy(entry => entry.Value);
+                            Dictionary<int, int> typedict = new Dictionary<int, int>();
+                            int i = 0;
+                            foreach(var item  in sortedDict)
+                            {
+                                typedict.Add(i, item.Key);
+                                i++;
+                            }
+                            string json = JsonSerializer.Serialize(typedict);
+
+                            // Gỡ lỗi: Kiểm tra số lượng phần tử trong danh sách
+
+
+                            try
+                            {
+                                using (StreamWriter writer = new StreamWriter(TypeDictPath))
+                                {
+                                    writer.Write(json);
+                                }
+
+                                Console.WriteLine("- File written successfully");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("- Exception message: " + ex.Message);
+                            }
                             Console.WriteLine("All Done!");
-                            
                             #endregion
                         }
                         break;
@@ -98,8 +135,8 @@ namespace AssociationRuleMining
                             #region Using Session
                             List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
                             rules_ = rules.ToList();
-                            List<string> inputItem = new List<string> { "0", "U18", "18"};
-                            String NextItem = "36";
+                            List<string> inputItem = new List<string> { "0", "U18", "36" };
+                            String NextItem = "1000014";
                             var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules);
                             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
                             #endregion
@@ -202,29 +239,6 @@ namespace AssociationRuleMining
 
             //-----------------------------------
             #region subsets gen
-            static List<List<string>> GenerateSubsets2(List<List<string>> transactions)
-            {
-                HashSet<string> uniqueItems = new HashSet<string>();
-
-                foreach (var transaction in transactions)
-                {
-                    foreach (var item in transaction)
-                    {
-                        uniqueItems.Add(item);
-                    }
-                }
-
-                List<List<string>> subsets = new List<List<string>>();
-                int numItems = uniqueItems.Count;
-
-                for (int i = 1; i <= numItems; i++)
-                {
-                    GenerateSubsetsHelper(transactions, uniqueItems.ToList(), i, new List<string>(), subsets);
-                }
-
-                return subsets;
-            }
-
             static void GenerateSubsetsHelper(List<List<string>> transactions, List<string> items, int k, List<string> currentSubset, List<List<string>> subsets)
             {
                 if (k == 0)
@@ -368,7 +382,7 @@ namespace AssociationRuleMining
                 }
 
                 float confidence = 1;
-                float cluster = 5;
+                float cluster = 6;
                 foreach (var subsets in subsets_total)
                 {
                     var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules);
@@ -380,7 +394,8 @@ namespace AssociationRuleMining
                         return resultn;
                     }
                     confidence += conf[0];
-                    if(TypeDict[cluster] > TypeDict[conf[1]]) cluster = conf[1]; //lấy cluster nhỏ nhất
+                    if(cluster == 6) cluster = conf[1];
+                    if ((TypeDict[cluster] > TypeDict[conf[1]])) cluster = conf[1]; //lấy cluster nhỏ nhất
                 }
                 Console.WriteLine("--------------");
                 float[] result ={(confidence) / subsets_total.Count,TypeDict[cluster]}; // nếu dương thì là có thể
@@ -421,19 +436,22 @@ namespace AssociationRuleMining
             {
                 float cluster = 0;
                 float confidence = 0;
-                List<String> nextItems = new List<String>();
-                nextItems.Add(NextItem);
+                item.Add(NextItem);
                 foreach (var rule in rules)
                 {
-                    if (NonsequenceEqual(rule.Antecedent, item) && NonsequenceEqual(rule.Consequent, nextItems))
+
+                    List<String> ruletotal = new List<String>();
+                    ruletotal.AddRange(rule.Antecedent);
+                    ruletotal.Add(rule.Consequent[0]);
+                    if (NonsequenceEqual(item, ruletotal))
                     {
                         Console.WriteLine(rule.ToString());
-                        //confidence = Math.Round(rule.Confidence * 100);
                         confidence = rule.Confidence;
-                        cluster = rule.Cluster;
-                        break;
+                        if(cluster< rule.Cluster) cluster = rule.Cluster;
+                        //break;
                     }
                 }
+                Console.WriteLine("Max Cluster:"+cluster);
                 float[]  result = {confidence, cluster};
                 return result;
             }
