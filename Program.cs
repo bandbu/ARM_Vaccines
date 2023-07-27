@@ -3,12 +3,11 @@ using Accord.Math;
 using System.Data;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Linq;
 using System.Text.Json.Serialization;
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using Newtonsoft.Json.Linq;
 using static AssociationRuleMining.Program.QACoPilotZero;
+using NewtonsoftJson = Newtonsoft.Json;
 
 namespace AssociationRuleMining
 {
@@ -102,7 +101,7 @@ namespace AssociationRuleMining
                             }
                             var sortedDict = typedict_raw.OrderBy(entry => entry.Value);
                             Dictionary<int, int> typedict = new Dictionary<int, int>();
-                            int i = 0;
+                            int i = 1;
                             foreach(var item  in sortedDict)
                             {
                                 typedict.Add(i, item.Key);
@@ -134,10 +133,14 @@ namespace AssociationRuleMining
                         {
                             #region Using Session
                             List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
+                            Dictionary<float, float> TypeDict = new Dictionary<float, float>();
+                            string json = File.ReadAllText(TypeDictPath);
+                            TypeDict = JsonSerializer.Deserialize<Dictionary<float, float>>(json);
+                            TypeDict.Add(-1, -1);
                             rules_ = rules.ToList();
                             List<string> inputItem = new List<string> { "0", "U18", "36" };
                             String NextItem = "1000014";
-                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules);
+                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules, TypeDict);
                             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
                             #endregion
                         }
@@ -347,15 +350,8 @@ namespace AssociationRuleMining
             }
 
             //-------------------------------------------------------------------------------------------
-            public static float[] AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules)
+            public static float[] AvailableChecking(List<String> InputData, String NextItem, List<AssociationRule> rules,Dictionary<float,float> TypeDict)
             {
-                Dictionary<float, float> TypeDict = new Dictionary<float, float>();
-                TypeDict.Add(-1, -1);
-                TypeDict.Add(1, 1);
-                TypeDict.Add(5, 2);
-                TypeDict.Add(2, 3);
-                TypeDict.Add(4, 4);
-                TypeDict.Add(3, 5);
                 Console.WriteLine("--------------");
                 if (InputData.Count < 3)
                 {
