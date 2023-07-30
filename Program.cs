@@ -97,14 +97,14 @@ namespace AssociationRuleMining
                             Dictionary<int, float> typedict_raw = new Dictionary<int, float>();
                             for(int j=0;j<centroids.Length;j++)
                             {
-                                typedict_raw.Add(j, centroids[j].GetValues()[0] * centroids[j].GetValues()[0] + centroids[j].GetValues()[1] * centroids[j].GetValues()[1]);
+                                typedict_raw.Add(j,(float)Math.Sqrt((centroids[j].GetValues()[0] * centroids[j].GetValues()[0]) + (centroids[j].GetValues()[1]* centroids[j].GetValues()[1])));
                             }
                             var sortedDict = typedict_raw.OrderBy(entry => entry.Value);
                             Dictionary<int, int> typedict = new Dictionary<int, int>();
                             int i = 1;
                             foreach(var item  in sortedDict)
                             {
-                                typedict.Add(i, item.Key);
+                                typedict.Add(item.Key,i);
                                 i++;
                             }
                             string json = JsonSerializer.Serialize(typedict);
@@ -135,8 +135,9 @@ namespace AssociationRuleMining
                             List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
                             Dictionary<float, float> TypeDict = new Dictionary<float, float>();
                             string json = File.ReadAllText(TypeDictPath);
-                            TypeDict = JsonSerializer.Deserialize<Dictionary<float, float>>(json);
-                            TypeDict.Add(-1, -1);
+                            Dictionary<float, float>? dictionary = JsonSerializer.Deserialize<Dictionary<float, float>>(json);
+                            TypeDict = dictionary;
+                            TypeDict.Add(-1,-1);
                             rules_ = rules.ToList();
                             List<string> inputItem = new List<string> { "0", "U18", "36" };
                             String NextItem = "1000014";
