@@ -99,7 +99,9 @@ namespace AssociationRuleMining
                             {
                                 typedict_raw.Add(j,(float)Math.Sqrt((centroids[j].GetValues()[0] * centroids[j].GetValues()[0]) + (centroids[j].GetValues()[1]* centroids[j].GetValues()[1])));
                             }
-                            var sortedDict = typedict_raw.OrderBy(entry => entry.Value);
+                            //var sortedDict = typedict_raw.OrderBy(entry => entry.Value);
+                            var sortedDict = typedict_raw.OrderBy(entry => entry.Value)
+                             .ToDictionary(pair => pair.Key, pair => pair.Value);
                             Dictionary<int, int> typedict = new Dictionary<int, int>();
                             int i = 1;
                             foreach(var item  in sortedDict)
