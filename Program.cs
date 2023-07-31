@@ -106,7 +106,7 @@ namespace AssociationRuleMining
                             int i = 1;
                             foreach(var item  in sortedDict)
                             {
-                                typedict.Add(item.Key,i);
+                                typedict.Add((item.Key+1),i);
                                 i++;
                             }
                             string json = JsonSerializer.Serialize(typedict);
@@ -339,7 +339,8 @@ namespace AssociationRuleMining
                         else if (Convert.ToInt32(row[1]) < 61) row[1] = "LC";
                         else if (Convert.ToInt32(row[1]) < 2195) row[1] = "U6";
                         else if (Convert.ToInt32(row[1]) < 6575) row[1] = "U18";
-                        else row[1] = "U18";
+                        else if (Convert.ToInt32(row[1]) < 17155) row[1] = "U47";
+                        else row[1] = "OLD";
                         for (int i = 0; i < row.Count; i++)
                         {
                             string[] elements = row[i].Split('-');
@@ -581,7 +582,7 @@ namespace AssociationRuleMining
                 List<List<string>> subsets_total = new List<List<string>>();
                 List<List<string>> pres = new List<List<string>>();
                 for (int i = 0; i < 2; i++)
-                    for (int j = 0; j < 4; j++)
+                    for (int j = 0; j < 6; j++)
                     {
                         List<string> item = new List<string>();
                         string group = "";
@@ -591,6 +592,8 @@ namespace AssociationRuleMining
                             case 1: group = "LC"; break;
                             case 2: group = "U6"; break;
                             case 3: group = "U18"; break;
+                            case 4: group = "U47"; break;
+                            case 5: group = "OLD";break;
                         }
                         item.Add(i.ToString());
                         item.Add(group);
