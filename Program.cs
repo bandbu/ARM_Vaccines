@@ -134,16 +134,16 @@ namespace AssociationRuleMining
                     case 2:
                         {
                             #region Using Session
-                            List<AssociationRule> rules = QACoPilotZero.ReadFromFile(rulesClusterPath);
+                            List<AssociationRule> rules2 = QACoPilotZero.ReadFromFile(rulesClusterPath);
                             Dictionary<float, float> TypeDict = new Dictionary<float, float>();
                             string json = File.ReadAllText(TypeDictPath);
                             Dictionary<float, float>? dictionary = JsonSerializer.Deserialize<Dictionary<float, float>>(json);
                             TypeDict = dictionary;
-                            TypeDict.Add(-1,-1);
-                            rules_ = rules.ToList();
-                            List<string> inputItem = new List<string> { "0", "U18", "36" };
-                            String NextItem = "1000014";
-                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules, TypeDict);
+                            TypeDict.Add(0,0);
+                            rules_ = rules2.ToList();
+                            List<string> inputItem = new List<string> { "0", "U47", "30","1000012" };
+                            String NextItem = "1000019";
+                            var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules2, TypeDict);
                             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
                             #endregion
                         }
@@ -382,10 +382,10 @@ namespace AssociationRuleMining
                 }
 
                 float confidence = 1;
-                float cluster = 6;
+                float MinTypedict_cluster = 6;
                 foreach (var subsets in subsets_total)
                 {
-                    var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules);
+                    var conf = CalculateItemConfidenceWithNextItem(subsets, NextItem, rules, TypeDict);
                     if (conf[0] == 0)
                     {
                         Console.WriteLine("Can't find any record about using " + string.Join(", ", subsets) + " with " + NextItem);
@@ -394,11 +394,11 @@ namespace AssociationRuleMining
                         return resultn;
                     }
                     confidence += conf[0];
-                    if(cluster == 6) cluster = conf[1];
-                    if ((TypeDict[cluster] > TypeDict[conf[1]])) cluster = conf[1]; //lấy cluster nhỏ nhất
+                    if(MinTypedict_cluster == 6) MinTypedict_cluster = conf[1];
+                    else if ((TypeDict[MinTypedict_cluster] > TypeDict[conf[1]])) MinTypedict_cluster = conf[1]; //lấy cluster nhỏ nhất trong các cặp vaccines
                 }
                 Console.WriteLine("--------------");
-                float[] result ={(confidence) / subsets_total.Count,TypeDict[cluster]}; // nếu dương thì là có thể
+                float[] result ={(confidence) / subsets_total.Count,TypeDict[MinTypedict_cluster] }; // nếu dương thì là có thể
                 return result;
             }
 
@@ -432,9 +432,9 @@ namespace AssociationRuleMining
                 return confidence;
             }
 
-            static float[] CalculateItemConfidenceWithNextItem(List<string> item, String NextItem, List<AssociationRule> rules)
+            static float[] CalculateItemConfidenceWithNextItem(List<string> item, String NextItem, List<AssociationRule> rules,Dictionary<float,float> typedict)
             {
-                float cluster = 0;
+                float MaxType_cluster = -1;
                 float confidence = 0;
                 item.Add(NextItem);
                 foreach (var rule in rules)
@@ -447,12 +447,13 @@ namespace AssociationRuleMining
                     {
                         Console.WriteLine(rule.ToString());
                         confidence = rule.Confidence;
-                        if(cluster< rule.Cluster) cluster = rule.Cluster;
+                        if (MaxType_cluster == -1) MaxType_cluster = rule.Cluster;
+                        else if (typedict[MaxType_cluster] < typedict[rule.Cluster]) MaxType_cluster = rule.Cluster;
                         //break;
                     }
                 }
-                Console.WriteLine("Max Cluster:"+cluster);
-                float[]  result = {confidence, cluster};
+                Console.WriteLine("Max Type:"+typedict[MaxType_cluster] +" with cluster:"+ MaxType_cluster);
+                float[]  result = {confidence, MaxType_cluster };
                 return result;
             }
 
