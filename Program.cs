@@ -17,11 +17,12 @@ namespace AssociationRuleMining
         {
             Menu();
         }
-
+        
         static void Menu()
         {
             bool inMenu = true;
             string dataPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\data2.csv";
+            
             string rulesPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\Rules.json";
             string rulesClusterPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\RulesClusterIncluded.json";
             string TypeDictPath = "C:\\Khoa\\Git\\Association-Rule-Mining\\TypeDict.json";
@@ -141,8 +142,8 @@ namespace AssociationRuleMining
                             TypeDict = dictionary;
                             TypeDict.Add(0,0);
                             rules_ = rules2.ToList();
-                            List<string> inputItem = new List<string> { "0", "U47", "30","1000012" };
-                            String NextItem = "1000019";
+                            List<string> inputItem = new List<string> { "0", "U6", "40" };
+                            String NextItem = "11";
                             var result = QACoPilotZero.AvailableChecking(inputItem, NextItem, rules2, TypeDict);
                             Console.WriteLine("(" + string.Join(", ", inputItem) + ") + " + NextItem + " (Confidence="+result[0]+", type = " + result[1] +")");
                             #endregion
@@ -468,6 +469,20 @@ namespace AssociationRuleMining
             {
                 // Tính toán support cho tất cả các mục            
                 Dictionary<string, float> itemSupports = CalculateItemSupports(transactions);
+                string json2 = JsonSerializer.Serialize(itemSupports);
+                try
+                {
+                    using (StreamWriter writer = new StreamWriter("C:\\Khoa\\Git\\Association-Rule-Mining\\ItemSup.csv"))
+                    {
+                        writer.Write(json2);
+                    }
+
+                    Console.WriteLine("- Item support File written successfully");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("- Exception message: " + ex.Message);
+                }
                 //tách cột ngày tuổi và giới tính ra để xử lý riêng
                 List<List<string>> transactions_vc = VaccineOnly(transactions);
                 // Tạo tập hợp chứa tất cả các mục duy nhất
@@ -660,7 +675,7 @@ namespace AssociationRuleMining
                         if (count != 0) { Console.Write("|"); }
                         else Console.Write("-");
                         int totalTransactions = transactions.Count;
-                        float support = count / totalTransactions;
+                        float support = count / totalTransactions; //------------------ Suy nghĩ về việc giảm số lượng
                         lock (lockObject)
                         {
                             if (count != 0) subsetSupports.Add(subset, support);
